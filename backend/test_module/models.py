@@ -51,7 +51,7 @@ class UserQuizAttempt(BaseModel):
         ('resumed','resumed'),
         ('completed','completed')
     ]
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    user = models.ForeignKey(User, related_name="user", on_delete=models.CASCADE)
     quiz = models.ForeignKey(Quiz, on_delete=models.CASCADE)
     score = models.FloatField()
     status = models.CharField(max_length=128, default="", choices=STATUSES)
