@@ -5,7 +5,9 @@ const apiUrls = {
   REGISTER: `register/`,
   LOGOUT:`logout/`,
   GETALLTEST:'/quizzes/',
-  STARTTEST:'/quizzes'
+  STARTTEST:'/quizzes',
+  SUBMITANSWER:'/quizzes',
+  TESTHISTROY:'/tests',
 
   
 }

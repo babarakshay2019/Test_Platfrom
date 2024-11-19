@@ -14,7 +14,7 @@ import {
 import { createTheme, ThemeProvider } from "@mui/material/styles";
 import { useNavigate } from "react-router-dom";
 import { useParams, useLocation } from "react-router-dom";
-import { getQuestionTest } from "../services/api";
+import { submitAnswer, submitTest, getQuestionTest,TestHistoryQuestion } from "../services/api"; // Import the API functions
 
 const theme = createTheme({
   palette: {
@@ -34,65 +34,91 @@ const ViewTest = () => {
   const navigate = useNavigate();
   const { startTestId } = useParams();
   const location = useLocation();
-  const status = location.state || {};
-
-  const test = {
-    id: 1,
-    test_subject: "Maths",
-    test_type: "Completed",
-    Question: [
-      {
-        id: 1,
-        question: "What is the capital of France?",
-        type: "mcq",
-        options: ["Paris", "London", "Rome", "Berlin"],
-        answer: "Paris",
-        submitted_answer: "Paris",
-        explanation: "Paris is the capital of France.",
-      },
-      {
-        id: 2,
-        question: "Is water boiling at 100°C? (True/False)",
-        type: "truefalse",
-        answer: "True",
-        submitted_answer: "False",
-        explanation:
-          "Water boils at 100°C under standard atmospheric conditions.",
-      },
-      {
-        id: 3,
-        question: "Fill in the blank: The chemical symbol for gold is _______.",
-        type: "fillblank",
-        answer: "Au",
-        submitted_answer: "Ag",
-        explanation: "The chemical symbol for gold is Au.",
-      },
-    ],
-  };
-
+  // const status = location.state || {};
+  const {testStatus} =location.state || {}
+  const [test, setTest] = useState(null);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [showExplanation, setShowExplanation] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [answer, setAnswer] = useState(""); // State to store the answer for the current question
 
+  // Fetching test details
   const fetchTestDetails = async () => {
+    setLoading(true);
     try {
-      const response = await getQuestionTest(startTestId);
-      console.log(response);
+      const response = await getQuestionTest(startTestId); // Your API call to fetch test data
+      const testData = {
+        id: response.quiz?.id,
+        title: response.quiz?.title,
+        status: response.quiz?.status,
+        Question: response?.questions.map((question) => ({
+          ...question,
+          // Handle options properly
+          options: typeof question.options === "string" ? JSON.parse(question.options).options : question.options?.options || [],
+        })),
+      };
+      setTest(testData);
     } catch (error) {
       console.error("Error fetching tests:", error);
+    } finally {
+      setLoading(false);
     }
   };
 
+  const fetchTestHistroyDetails = async () => {
+    setLoading(true);
+    try {
+      const response = await TestHistoryQuestion(startTestId); // Your API call to fetch test data
+      const testData = {
+        id: response.quiz?.id,
+        title: response.quiz?.title,
+        status: response.quiz?.status,
+        Question: response?.questions.map((question) => ({
+          ...question,
+          // Handle options properly
+          options: typeof question.options === "string" ? JSON.parse(question.options).options : question.options?.options || [],
+        })),
+      };
+      setTest(testData);
+    } catch (error) {
+      console.error("Error fetching tests:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+
   useEffect(() => {
-    if (status === "startTest") {
+    console.log(testStatus)
+    if (testStatus === "startTest") {
       fetchTestDetails();
     }
-  }, [status]);
+    if (testStatus==="completed"){
+      fetchTestHistroyDetails()
+    }
+  }, [testStatus]);
 
-  const handleNext = () => {
-    if (currentQuestionIndex < test.Question.length - 1) {
-      setCurrentQuestionIndex(currentQuestionIndex + 1);
-      setShowExplanation(false);
+  const handleNext = async () => {
+    const currentQuestion = test.Question[currentQuestionIndex];
+    if (answer) {
+      try {
+        const student_answer={
+          selected_option:answer
+        }
+        // Call the API to submit the current answer
+        await submitAnswer(startTestId, currentQuestion.id, student_answer);
+
+        // Move to the next question
+        if (currentQuestionIndex < test.Question.length - 1) {
+          setCurrentQuestionIndex(currentQuestionIndex + 1);
+          setShowExplanation(false);
+          setAnswer(""); // Clear the answer after submission
+        }
+      } catch (error) {
+        console.error("Error submitting answer:", error);
+      }
+    } else {
+      // alert("Please select an answer or provide a response before proceeding.");
     }
   };
 
@@ -103,8 +129,28 @@ const ViewTest = () => {
     }
   };
 
-  const handleSubmitTest = () => {
-    console.log("Test Submitted");
+  const handleSubmitTest = async () => {
+
+    handleNext()
+    const answers = test.Question.map((question) => ({
+      question_id: question.id,
+      answer: question.submitted_answer,
+    }));
+
+    try {
+      // Call the API to submit the test
+      const response=await submitTest(startTestId, answers);
+
+      // Redirect to the result page or show success
+      alert("Test submitted successfully!");
+      // navigate(`/view-test/${id}`, { state: "startTest" });
+      navigate("/results", {
+        state: { result: response }, // Pass the result data via state
+      });
+    } catch (error) {
+      console.error("Error submitting the test:", error);
+    }
+    
   };
 
   const toggleExplanation = () => {
@@ -114,6 +160,19 @@ const ViewTest = () => {
   const handleReturnToDashboard = () => {
     navigate(`/dashboard`);
   };
+
+  // Handle answer selection for MCQs and True/False questions
+  const handleOptionChange = (event) => {
+    setAnswer(event.target.value); // Update the answer state
+  };
+
+  if (loading) {
+    return <Typography>Loading...</Typography>;
+  }
+
+  if (!test) {
+    return <Typography>No test details available.</Typography>;
+  }
 
   return (
     <ThemeProvider theme={theme}>
@@ -146,10 +205,10 @@ const ViewTest = () => {
           >
             <CardContent>
               <Typography variant="h6" sx={{ marginBottom: "8px" }}>
-                {test.Question[currentQuestionIndex].question}
+                {test.Question[currentQuestionIndex].question_text}
               </Typography>
 
-              {test.test_type === "Completed" && (
+              {test.status === "Completed" && (
                 <Button
                   variant="outlined"
                   sx={{
@@ -166,9 +225,11 @@ const ViewTest = () => {
                 </Button>
               )}
 
-              {test.Question[currentQuestionIndex].type === "mcq" && (
+              {/* MCQ Question */}
+              {test.Question[currentQuestionIndex].question_type === "MCQ" && (
                 <RadioGroup
-                  value={test.Question[currentQuestionIndex].submitted_answer}
+                  value={answer} // Bind the RadioGroup value to the answer state
+                  onChange={handleOptionChange}
                 >
                   {test.Question[currentQuestionIndex].options.map(
                     (option, index) => (
@@ -177,44 +238,59 @@ const ViewTest = () => {
                         value={option}
                         control={<Radio />}
                         label={option}
-                        disabled
-                        sx={{
-                          marginBottom: "8px",
-                          color: "#fff",
-                        }}
+                        sx={{ marginBottom: "8px", color: "#fff" }}
+                      />
+                    )
+                  )}
+                </RadioGroup>
+              )}
+              {test.Question[currentQuestionIndex].question_type === "MULTI" && (
+                <RadioGroup
+                  value={answer} // Bind the RadioGroup value to the answer state
+                  onChange={handleOptionChange}
+                >
+                  {test.Question[currentQuestionIndex].options.map(
+                    (option, index) => (
+                      <FormControlLabel
+                        key={index}
+                        value={option}
+                        control={<Radio />}
+                        label={option}
+                        sx={{ marginBottom: "8px", color: "#fff" }}
                       />
                     )
                   )}
                 </RadioGroup>
               )}
 
-              {test.Question[currentQuestionIndex].type === "truefalse" && (
+              {/* True/False Question */}
+              {test.Question[currentQuestionIndex].question_type === "YN" && (
                 <RadioGroup
-                  value={test.Question[currentQuestionIndex].submitted_answer}
+                  value={answer} // Bind the RadioGroup value to the answer state
+                  onChange={handleOptionChange}
                 >
                   <FormControlLabel
                     value="True"
                     control={<Radio />}
                     label="True"
-                    disabled
                     sx={{ color: "#fff" }}
                   />
                   <FormControlLabel
                     value="False"
                     control={<Radio />}
                     label="False"
-                    disabled
                     sx={{ color: "#fff" }}
                   />
                 </RadioGroup>
               )}
 
-              {test.Question[currentQuestionIndex].type === "fillblank" && (
+              {/* Fill-in-the-Blank Question */}
+              {test.Question[currentQuestionIndex].question_type === "FILL" && (
                 <TextField
                   fullWidth
                   variant="outlined"
-                  value={test.Question[currentQuestionIndex].submitted_answer}
-                  disabled
+                  value={answer} // Bind the TextField value to the answer state
+                  onChange={(e) => setAnswer(e.target.value)} // Update the answer state
                   label="Your Answer"
                   sx={{
                     marginBottom: "8px",
@@ -224,42 +300,7 @@ const ViewTest = () => {
                 />
               )}
 
-              {test.test_type === "Completed" && (
-                <Box
-                  sx={{
-                    marginTop: "16px",
-                    color: "#004d4b",
-                    fontWeight: "bold",
-                  }}
-                >
-                  <Typography variant="body1">
-                    <strong>Your answer:</strong>{" "}
-                    {test.Question[currentQuestionIndex].submitted_answer}
-                  </Typography>
-                  <Typography variant="body1">
-                    <strong>Correct answer:</strong>{" "}
-                    {test.Question[currentQuestionIndex].answer}
-                  </Typography>
-
-                  <Typography
-                    variant="body1"
-                    sx={{
-                      color:
-                        test.Question[currentQuestionIndex].submitted_answer ===
-                        test.Question[currentQuestionIndex].answer
-                          ? "green"
-                          : "red",
-                      fontWeight: "bold",
-                    }}
-                  >
-                    {test.Question[currentQuestionIndex].submitted_answer ===
-                    test.Question[currentQuestionIndex].answer
-                      ? "Correct"
-                      : "Incorrect"}
-                  </Typography>
-                </Box>
-              )}
-
+              {/* Show Explanation */}
               {showExplanation && (
                 <Box
                   sx={{
@@ -277,48 +318,22 @@ const ViewTest = () => {
           </Card>
         </Box>
 
-        <Box
-          sx={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-          }}
-        >
-          {currentQuestionIndex > 0 && (
-            <Button variant="outlined" color="primary" onClick={handleBack}>
-              Back
-            </Button>
-          )}
-
+        <Box sx={{ display: "flex", justifyContent: "space-between" }}>
           {currentQuestionIndex < test.Question.length - 1 && (
-            <Box sx={{ marginLeft: "auto" }}>
-              <Button variant="contained" color="primary" onClick={handleNext}>
-                Next
-              </Button>
-            </Box>
+            <Button variant="contained" color="primary" onClick={handleNext}>
+              Next
+            </Button>
           )}
         </Box>
 
-        {currentQuestionIndex === test.Question.length - 1 &&
-          test.test_type !== "Completed" && (
-            <Box sx={{ textAlign: "center", marginTop: "16px" }}>
-              <Button
-                variant="contained"
-                color="secondary"
-                onClick={handleSubmitTest}
-              >
-                Submit Test
-              </Button>
-            </Box>
-          )}
-        {test.test_type === "Completed" && (
+        {currentQuestionIndex === test.Question.length - 1 && (
           <Box sx={{ textAlign: "center", marginTop: "16px" }}>
             <Button
               variant="contained"
-              color="error"
-              onClick={handleReturnToDashboard}
+              color="secondary"
+              onClick={handleSubmitTest}
             >
-              Return to Dashboard
+              Submit Test
             </Button>
           </Box>
         )}

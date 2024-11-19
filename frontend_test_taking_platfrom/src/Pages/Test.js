@@ -62,7 +62,7 @@ const StartTest = () => {
   }, [isFetching, page, maxPage]);
 
   const handleTestAction = (id) => {
-    navigate(`/view-test/${id}`, { state: "startTest" });
+    navigate(`/view-test/${id}`, { state:{ testStatus:"startTest"} });
   };
 
   return (

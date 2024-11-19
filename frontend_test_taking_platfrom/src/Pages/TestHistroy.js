@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Box, Typography, Button, Card, CardContent, Grid } from '@mui/material';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 import { useNavigate } from 'react-router-dom';
+import {TestHistoryApi } from '../services/api'
 
 const theme = createTheme({
   palette: {
@@ -18,20 +19,40 @@ const theme = createTheme({
 });
 
 const TestHistory = () => {
-
   const navigate = useNavigate();
 
-  const tests = [
-    { id: 1, name: 'Math Test - 2024', description: 'Test on Algebra and Geometry', score: 85, source: 'Textbook' },
-    { id: 2, name: 'Physics Test - 2024', description: 'Test on Mechanics and Thermodynamics', score: 70, source: 'Online Course' },
-    { id: 3, name: 'Chemistry Test - 2024', description: 'Test on Organic Chemistry', score: 50, source: 'Research Paper' },
-    { id: 4, name: 'Biology Test - 2024', description: 'Test on Genetics and Evolution', score: 90, source: 'Lecture Notes' },
-    { id: 5, name: 'History Test - 2024', description: 'Test on World War II', score: 60, source: 'History Book' },
-  ];
+  // State to store the test data
+  const [tests, setTests] = useState([]);
+
+  useEffect(() => {
+    // Fetch test data from API
+    const fetchTestData = async () => {
+      try {
+        const response= await TestHistoryApi("completed");
+        console.log(response)
+        setTests(response); // Store response data
+      } catch (error) {
+        console.error('Failed to fetch test data:', error);
+      }
+    };
+
+    fetchTestData(); // Call the function to fetch data
+  }, []); // Empty dependency array to run only once on mount
 
   const handleViewTest = (testId) => {
-    navigate(`/view-test/${testId}`);
+    navigate(`/view-test/${testId}`,{ state: {testStatus:"completed"} });
   };
+
+  // If no tests are available, show a message
+  if (tests.length === 0) {
+    return (
+      <Box sx={{ textAlign: 'center' }}>
+        <Typography variant="h6" sx={{ color: '#004d4b' }}>
+          No tests available.
+        </Typography>
+      </Box>
+    );
+  }
 
   return (
     <ThemeProvider theme={theme}>
@@ -58,10 +79,10 @@ const TestHistory = () => {
               >
                 <CardContent>
                   <Typography variant="h6" sx={{ color: '#004d4b', fontWeight: 'bold' }}>
-                    {test.name}
+                    {test?.quiz?.title}
                   </Typography>
                   <Typography sx={{ color: '#004d4b', marginBottom: '16px' }}>
-                    {test.description}
+                    {test?.quiz?.description}
                   </Typography>
 
                   <Box sx={{ marginBottom: '16px' }}>
@@ -70,15 +91,11 @@ const TestHistory = () => {
                     </Typography>
                   </Box>
 
-                  <Typography sx={{ color: '#004d4b', marginBottom: '8px' }}>
-                    <strong>Source:</strong> {test.source}
-                  </Typography>
-
                   <Box sx={{ textAlign: 'right' }}>
                     <Button
                       variant="contained"
                       color="primary"
-                      onClick={() => handleViewTest(test.id)}
+                      onClick={() => handleViewTest(test?.quiz?.id)}
                       sx={{ width: '120px' }}
                     >
                       View Test

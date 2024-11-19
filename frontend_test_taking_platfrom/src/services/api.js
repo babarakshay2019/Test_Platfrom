@@ -28,4 +28,23 @@ export const getQuestionTest = async (id) => {
   return response.data;
 };
 
+export const submitTest = async (quizId) => {
+  const response = await axiosInstance.post(`${apiUrl.SUBMITANSWER}/${quizId}/complete/`);
+  return response.data;
+};
+
+export const submitAnswer = async (quizId,questionId,payload) => {
+  const response = await axiosInstance.post(`${apiUrl.STARTTEST}/${quizId}/questions/${questionId}/submit/`,payload);
+  return response.data;
+};
+
+export const TestHistoryApi = async (status) => {
+  const response = await axiosInstance.get(`${apiUrl.TESTHISTROY}/?status=${status}`);
+  return response.data;
+};
+
+export const TestHistoryQuestion = async (id) => {
+  const response = await axiosInstance.get(`${apiUrl.TESTHISTROY}/${id}/`);
+  return response.data;
+};
 

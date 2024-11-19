@@ -277,7 +277,6 @@ class SingleTestDetailsView(GenericAPIView):
                 'student_answer': UserAnswer.objects.get_or_create(
                     user_attempt=user_attempt,
                     question=question,
-                    defaults={'selected_option': '', 'created_by': request.user, 'updated_by': request.user}
                 )[0].selected_option
             }
             for question in questions

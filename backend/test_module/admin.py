@@ -8,12 +8,12 @@ class QuizAdmin(admin.ModelAdmin):
     ordering = ('-created_at',)
 
 class QuestionAdmin(admin.ModelAdmin):
-    list_display = ('question_text', 'question_type', 'quiz', 'created_at', 'created_by')
+    list_display = ('question_text', 'question_type', 'answer','quiz', 'created_at', 'created_by')
     search_fields = ('question_text', 'quiz__title')
     list_filter = ('quiz', 'question_type', 'created_at', 'created_by')
     ordering = ('-created_at',)
     fieldsets = (
-        (None, {'fields': ('quiz', 'question_text', 'question_type', 'options', 'explanation')}),
+        (None, {'fields': ('quiz', 'question_text', 'question_type', 'answer','options', 'explanation')}),
         ('Metadata', {'fields': ('created_by', 'updated_by')}),
     )
     readonly_fields = ('created_by', 'updated_by')
