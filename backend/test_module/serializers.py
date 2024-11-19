@@ -98,4 +98,4 @@ class LeaderboardSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = UserQuizAttempt
-        fields = ['user_name', 'score', 'created_at']
+        fields = ['id', 'user_name', 'score', 'created_at']

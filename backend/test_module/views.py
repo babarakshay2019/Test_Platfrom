@@ -172,14 +172,27 @@ class QuizCompleteView(GenericAPIView):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
-# Leaderboard
+from django.db.models import Max
+
 class LeaderboardView(GenericAPIView):
     permission_classes = [IsAuthenticated]
     serializer_class = LeaderboardSerializer
 
-    def get(self, request, quiz_id, *args, **kwargs):
-        logger.info("Fetching leaderboard for quiz ID: %s", quiz_id)
-        leaderboard = UserQuizAttempt.objects.filter(quiz_id=quiz_id).order_by('-score', 'created_at').select_related('user')
+    def get(self, request, *args, **kwargs):
+        # Get the top score for each user where the quiz status is "completed"
+        top_scores = (
+            UserQuizAttempt.objects.filter(status="completed")
+            .values('user_id')  # Group by user ID
+            .annotate(max_score=Max('score'))  # Get the max score for each user
+        )
+
+        # Get the full UserQuizAttempt records with the top scores using select_related
+        leaderboard = UserQuizAttempt.objects.filter(
+            status="completed",
+            score__in=[entry['max_score'] for entry in top_scores]  # Filter by top scores
+        ).select_related('user').order_by('-score', 'created_at')
+
+        # Serialize the leaderboard data
         serializer = self.get_serializer(leaderboard, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
